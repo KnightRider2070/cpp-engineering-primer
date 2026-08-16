@@ -1,0 +1,123 @@
+name: CI
+
+# Runs on every push and pull request. Two questions:
+#   1. Does everything still build?
+#   2. Did anything that used to pass stop passing?
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ cmake ninja-build
+
+      - name: Cache the GoogleTest download
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: deps-${{ runner.os }}-${{ hashFiles('CMakeLists.txt') }}
+
+      - name: Configure
+        run: cmake -S . -B build
+
+      - name: Build everything that exists
+        run: cmake --build build -j"$(nproc)"
+
+  checks:
+    name: Course checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ cmake gdb python3
+
+      - name: Cache the GoogleTest download
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: deps-${{ runner.os }}-${{ hashFiles('CMakeLists.txt') }}
+
+      # Runs every stage, never stops early, writes a table into the job
+      # summary, and fails only on a REGRESSION -- a stage that comes before
+      # the highest passing one but does not pass. Stages you have not reached
+      # yet are reported as "not started", not as failures.
+      - name: Run every stage check
+        run: ./ttt check --all --report
+
+      - name: Course self-test
+        if: always()
+        run: ./ttt selftest
+
+  docker:
+    name: Container
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Dormant until Stage 8, when the Dockerfile appears.
+      - name: Is there a Dockerfile yet?
+        id: probe
+        run: |
+          if [ -f Dockerfile ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "No Dockerfile yet -- that arrives at Stage 8." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Build the image
+        if: steps.probe.outputs.found == 'true'
+        run: docker build -t ttt-ci .
+
+      - name: Run it and talk to it
+        if: steps.probe.outputs.found == 'true'
+        run: |
+          cid=$(docker run -d -p 18080:8080 ttt-ci)
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18080/api/health >/dev/null 2>&1; then
+              ok=1; break
+            fi
+            sleep 1
+          done
+          if [ "${ok:-0}" != "1" ]; then
+            echo "The container never answered /api/health."
+            echo "A server bound to 127.0.0.1 inside a container is unreachable"
+            echo "from outside it. It must bind 0.0.0.0."
+            docker logs "$cid"
+            docker rm -f "$cid" >/dev/null
+            exit 1
+          fi
+          curl -fsS -X POST -H 'Content-Type: application/json' \
+               -d '{"cell":4}' http://127.0.0.1:18080/api/move | tee /tmp/move.json
+          grep -q '"x"' /tmp/move.json
+          docker rm -f "$cid" >/dev/null
+
+      - name: Check the image size
+        if: steps.probe.outputs.found == 'true'
+        run: |
+          bytes=$(docker image inspect ttt-ci --format '{{.Size}}')
+          mb=$((bytes / 1000000))
+          echo "Final image: ${mb} MB" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$mb" -ge 150 ]; then
+            echo "Image is ${mb} MB, which is over the 150 MB limit."
+            echo "A multi-stage build keeps the compiler out of the final image."
+            exit 1
+          fi

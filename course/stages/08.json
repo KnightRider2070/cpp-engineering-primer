@@ -1,0 +1,47 @@
+{
+  "id": 8,
+  "slug": "containerize-it",
+  "title": "Containerize It",
+  "tagline": "Docker, images, containers",
+  "estimate": "3-5 hours",
+  "unlocks": "Something you can hand to anyone, on any machine.",
+  "objective": "Write a Dockerfile that builds your game and serves it, so that someone with no compiler, no CMake and no idea what C++ is can run `docker run` and play. The course does not give you a Dockerfile -- you write it.",
+  "creates": ["Dockerfile", ".dockerignore", "a README for your own game"],
+  "concepts": {
+    "cpp": [],
+    "linux": ["image vs container vs registry", "build context", "layer caching and why order matters", "multi-stage builds", "EXPOSE vs -p", "running as a non-root user", "HEALTHCHECK", "binding 0.0.0.0 vs 127.0.0.1"],
+    "git": ["git tag -a", "writing a README someone else will read"]
+  },
+  "knows": ["everything through Stage 7"],
+  "notYet": ["orchestration", "Kubernetes", "CI beyond what the repo already has"],
+  "checks": [
+    "docker build succeeds from a clean context.",
+    "The container serves /api/health.",
+    "A move posted over HTTP lands on the board.",
+    "The container does not run as root.",
+    "The final image is under 150 MB."
+  ],
+  "hints": [
+    "A container image is a filesystem plus a command to run. Yours needs: a compiler to BUILD your program, and then... does it still need the compiler once the program is built?",
+    "That question is what multi-stage builds answer. You can use one image with the whole toolchain to compile, and then copy just the finished binary into a second, much smaller image.",
+    "FROM ubuntu AS build\n  install compiler + cmake\n  copy source\n  build\n\nFROM ubuntu-slim AS run\n  copy ONLY the binary and the web files from the build stage\n  create a non-root user\n  EXPOSE 8080\n  CMD run the server",
+    "Two things bite everyone once:\n\n1. Docker copies the whole build context (your entire folder) before it starts. If build/ is in there, that is hundreds of megabytes for nothing. That is what .dockerignore is for.\n\n2. A server listening on 127.0.0.1 inside a container is unreachable from your machine, because 'localhost' inside the container is not your localhost. It must listen on 0.0.0.0. The course server already does -- go read the last line of course/server/Main.cpp and now you know why."
+  ],
+  "prompts": [
+    {
+      "id": 1,
+      "title": "My container starts but I can't reach it",
+      "body": "My container is running but I get connection refused when I open localhost:8080.\n\nHere is my Dockerfile:\n<PASTE IT>\n\nHere is how I ran it:\n<PASTE THE docker run COMMAND>\n\nHere is `docker ps` and `docker logs <id>`:\n<PASTE THEM>\n\nAsk me what address the server inside the container is listening on, and what 'localhost' means from inside a container versus outside it. Lead me to it -- do not just state the answer."
+    },
+    {
+      "id": 2,
+      "title": "Review my Dockerfile",
+      "body": "Here is my Dockerfile for a C++ web server:\n<PASTE IT>\n\nAsk me questions about it. Specifically: which layers get rebuilt when I change one .cpp file and could I reorder to avoid that, is the compiler still in my final image and does it need to be, what user does the process run as, and what is actually in my build context. Do not rewrite it for me."
+    },
+    {
+      "id": 3,
+      "title": "Quiz me on Docker",
+      "body": "Quiz me on Docker fundamentals, at the level an interviewer would expect from someone who has containerised one application.\n\nOne question at a time, wait for my answer. Cover: image versus container, what a layer is, why multi-stage builds exist, EXPOSE versus -p, what the build context is, and why you would avoid running as root. Tell me after each answer whether it was interview-ready."
+    }
+  ]
+}

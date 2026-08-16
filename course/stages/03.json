@@ -1,0 +1,46 @@
+{
+  "id": 3,
+  "slug": "create-gamestate",
+  "title": "Create GameState",
+  "tagline": "Classes, methods, references",
+  "estimate": "4-6 hours",
+  "unlocks": "A real build system, and code you can navigate.",
+  "objective": "Restructure the exact same game into classes across multiple files, and build it with CMake instead of typing g++ by hand. The behaviour must not change at all -- that is the whole test.",
+  "creates": ["my-game/CMakeLists.txt", "your own headers and sources", "my-game/main.cpp (slimmed down)"],
+  "concepts": {
+    "cpp": ["struct vs class", "member variables", "member functions", "constructors", "const member functions", "#pragma once", "header/source split", "your own enum class"],
+    "linux": ["cmake -S . -B build", "cmake --build build", "out-of-source builds", "compiler error vs linker error"],
+    "git": ["a real merge conflict, in a file you wrote"]
+  },
+  "knows": ["arrays", "loops", "functions", "structs", "classes", "constructors", "const member functions", "enum class"],
+  "notYet": ["pointers", "references as parameters", "virtual", "inheritance", "templates", "the STL beyond std::array"],
+  "checks": [
+    "my-game/CMakeLists.txt exists and the project builds with no warnings.",
+    "The CMake targets `my_game` (a library) and `ttt-cli` (an executable) both exist.",
+    "Every Stage 2 behaviour check still passes against the new binary.",
+    "Your game logic lives somewhere other than main.cpp."
+  ],
+  "hints": [
+    "You have a board, and you have things you do to a board. In C++ those can live together in one type. What state does your game need to remember between moves? That list is your class's member variables.",
+    "Two different jobs again: one type that HOLDS the game (board, whose turn, whether it is over), and code that CHANGES it. They can be one class or two -- decide which, and be able to say why.",
+    "class Board:\n    data: nine cells\n    method: what is at cell i\n    method: put a mark at cell i\n    method: is cell i empty\n\nmain.cpp: create one, loop, call its methods",
+    "When you add a second .cpp file you must add it to `add_library(my_game ...)` in my-game/CMakeLists.txt. If you forget, the code compiles fine and then the LINKER fails with 'undefined reference to ...'. That distinction -- compiled but not linked -- is the single most useful build concept in C++, and you are about to meet it for real."
+  ],
+  "prompts": [
+    {
+      "id": 1,
+      "title": "undefined reference / linker error",
+      "body": "I am getting an error building my C++ project with CMake.\n\nHere is the full output:\n<PASTE THE ERROR>\n\nHere is my my-game/CMakeLists.txt:\n<PASTE IT>\n\nFirst tell me whether this is a COMPILER error or a LINKER error, and how I can tell the difference from the message alone. Then ask me which files I have created. Do not fix it for me."
+    },
+    {
+      "id": 2,
+      "title": "Review my class design",
+      "body": "I have just turned my tic-tac-toe program into classes.\n\nHere are my files:\n<PASTE THEM>\n\nAsk me questions about the design. Specifically: what is the responsibility of each class in one sentence, which member functions should be const and why, and is there anything public that should not be? Do not redesign it for me -- if you think something is wrong, ask me a question that helps me see it."
+    },
+    {
+      "id": 3,
+      "title": "Quiz me on classes and const",
+      "body": "Quiz me on C++ classes: struct vs class, constructors, member functions, and const member functions.\n\nOne question at a time. Include at least one question about what `const` after a member function actually promises, and one about what happens if I forget to initialise a member. Wait for my answer before moving on."
+    }
+  ]
+}

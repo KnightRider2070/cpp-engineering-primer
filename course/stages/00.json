@@ -1,0 +1,47 @@
+{
+  "id": 0,
+  "slug": "environment-setup",
+  "title": "Environment Setup",
+  "tagline": "Tools & first program",
+  "estimate": "2-3 hours",
+  "unlocks": "A Linux machine that can compile C++.",
+  "objective": "Get a working Linux toolchain on your Windows machine, learn just enough shell to move around in it, and compile and run one C++ program.",
+  "creates": ["my-game/scratch/hello.cpp"],
+  "concepts": {
+    "cpp": ["#include", "int main", "std::cout", "return 0"],
+    "linux": ["pwd", "ls", "cd", "mkdir", "cat", "less", "which", "echo $?", "chmod +x"],
+    "git": ["git config user.name", "git config user.email", "git add", "git commit"]
+  },
+  "knows": ["nothing yet - this is the first stage"],
+  "notYet": ["variables", "arrays", "loops", "functions", "classes", "pointers", "references"],
+  "checks": [
+    "g++ 11 or newer is installed and on your PATH.",
+    "cmake 3.22 or newer is installed.",
+    "git knows who you are (user.name and user.email are set).",
+    "The project configures cleanly, even though my-game/ is still empty.",
+    "my-game/scratch/hello.cpp compiles and prints something."
+  ],
+  "hints": [
+    "WSL2 is a real Ubuntu running alongside Windows, not an emulator. Install it from PowerShell with `wsl --install -d Ubuntu`, then reboot. Everything after that happens inside the Ubuntu terminal, not PowerShell.",
+    "Ubuntu ships without a compiler. The package that brings g++, make and friends is called `build-essential`. You also want `cmake`, `git`, `gdb` and `python3`. One `sudo apt install` line covers all of them.",
+    "sudo apt update && sudo apt install -y build-essential gdb cmake git python3",
+    "Put the repository in your Linux home directory (`cd ~` then clone). If you work in /mnt/c the build will be roughly ten times slower and file permissions get strange, because that path crosses from Linux into Windows on every single file access."
+  ],
+  "prompts": [
+    {
+      "id": 1,
+      "title": "My WSL2 install went wrong",
+      "body": "I am setting up WSL2 with Ubuntu on Windows so I can compile C++.\n\nHere is what I ran:\n<PASTE THE COMMAND>\n\nHere is what it said:\n<PASTE THE OUTPUT>\n\nWalk me through what that message means before suggesting a fix, and tell me how I could have read it myself."
+    },
+    {
+      "id": 2,
+      "title": "Explain this command before I run it",
+      "body": "Someone told me to run this command in Ubuntu:\n\n<PASTE THE COMMAND>\n\nBreak it into its parts and explain what each one does. Tell me specifically whether it changes anything on my system permanently, and whether I should be careful with it. Do not just tell me it is safe."
+    },
+    {
+      "id": 3,
+      "title": "Quiz me on the shell",
+      "body": "Quiz me on the handful of shell commands I need for this stage: pwd, ls, cd, mkdir, cat, less, which, and echo $?.\n\nAsk me ONE question at a time and wait for my answer. Prefer questions like 'you are in /home/me and you want to get to /home/me/project/src, what do you type' over definition questions. If I get one wrong, do not give me the answer -- give me a smaller question that leads to it."
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "id": 4,
+  "slug": "validate-moves-and-errors",
+  "title": "Validate Moves + Errors",
+  "tagline": "Enums, const, headers",
+  "estimate": "3-5 hours",
+  "unlocks": "A game a hostile user cannot break.",
+  "objective": "Make every bad input harmless: out of range, already taken, not a number at all, or the input stream ending. Report *why* a move was refused instead of silently ignoring it.",
+  "creates": ["your own error type", "validation in your game class"],
+  "concepts": {
+    "cpp": ["returning a reason instead of a bool", "switch over enum class", "-Wswitch catching a missing case", "early return", "recovering std::cin after bad input"],
+    "linux": ["gdb: break, run, next, print, bt", "compiling with -g", "reading -Wall -Wextra as information"],
+    "git": ["git add -p", "commit messages with a subject and body"]
+  },
+  "knows": ["arrays", "loops", "functions", "classes", "constructors", "const member functions", "enum class", "switch"],
+  "notYet": ["pointers", "references as parameters", "virtual", "inheritance", "exceptions", "templates"],
+  "checks": [
+    "Cell numbers outside the board are refused without crashing.",
+    "A cell that is already taken is refused.",
+    "Non-numeric input (like 'abc') does not put the program into an infinite loop.",
+    "The board is unchanged after every refused move.",
+    "End of input ends the program cleanly."
+  ],
+  "hints": [
+    "A move can fail for more than one reason. A function that returns `bool` can only say 'no' -- it cannot say 'why not'. What could it return instead?",
+    "List every distinct way a move can be refused. There are three or four. That list wants to be an `enum class`, and the enum wants to be returned from wherever you apply a move.",
+    "MoveError tryPlay(int cell):\n    if cell not in 0..8:      return OutOfRange\n    if game already finished: return GameOver\n    if cell not empty:        return CellTaken\n    place mark, switch player\n    return None",
+    "When you `switch` over an enum class and leave out `default:`, the compiler warns you if you forget a case (-Wswitch, which -Wall turns on). That turns the compiler into a checklist. Add -Werror to your target's compile options this stage and let it hold you to it.\n\nSeparately: after `std::cin >> n` fails on input like 'abc', the stream stays in a failed state and every later read fails instantly. You need std::cin.clear() and then std::cin.ignore(...) to get out of it."
+  ],
+  "prompts": [
+    {
+      "id": 1,
+      "title": "My input handling loops forever",
+      "body": "When I type something that is not a number, my program spins forever printing the same thing.\n\nHere is my input loop:\n<PASTE IT>\n\nAsk me what I think std::cin does when it fails to read an int. Then help me discover what state the stream is left in and what I have to do about it. Do not paste me the fix."
+    },
+    {
+      "id": 2,
+      "title": "Review my error handling",
+      "body": "I have just added error reporting to my tic-tac-toe move handling.\n\nHere is my code:\n<PASTE IT>\n\nAsk me questions about it. Specifically: have I covered every way a move can fail, does my caller actually do something different for each error, and could two of my error cases ever both be true at once (and if so, which one wins and is that deliberate)? Do not rewrite it."
+    },
+    {
+      "id": 3,
+      "title": "Quiz me on enums and gdb",
+      "body": "Quiz me on two things: C++ enum class (versus plain enum), and basic gdb usage (break, run, next, print, backtrace).\n\nOne question at a time, wait for my answer. For gdb, prefer 'you want to find out X, what do you type' over 'what does command Y do'."
+    }
+  ]
+}

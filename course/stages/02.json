@@ -1,0 +1,46 @@
+{
+  "id": 2,
+  "slug": "play-moves",
+  "title": "Play Moves",
+  "tagline": "Loops, if, return values",
+  "estimate": "3-5 hours",
+  "unlocks": "A game two people can actually play.",
+  "objective": "Read moves from the keyboard, put X and O on the board in turn, and keep going until the board is full. Still one file, still no classes, still compiled by hand.",
+  "creates": ["my-game/main.cpp (extended)"],
+  "concepts": {
+    "cpp": ["writing your own functions", "parameters and return values", "std::cin >>", "while loops", "if / else", "bool", "converting 1-9 input to 0-8 index"],
+    "linux": ["piping input with printf and |", "here-docs", "input redirection with <", "writing a .gitignore"],
+    "git": ["git commit --amend", "git diff --staged", "git rm --cached"]
+  },
+  "knows": ["arrays", "loops", "std::cout", "std::cin", "if/else", "your own functions", "bool"],
+  "notYet": ["classes", "structs", "pointers", "references", "enum class", "CMake", "std::array"],
+  "checks": [
+    "A scripted sequence of moves lands on the right cells.",
+    "Players alternate: X, then O, then X.",
+    "The program exits when input runs out (EOF) instead of looping forever.",
+    "It exits with code 0."
+  ],
+  "hints": [
+    "You now have at least two jobs in one file: showing the board, and changing the board. Those are different things. What would you call each one if it were a function?",
+    "The player types 1 to 9 because that is how humans count squares. Your array runs 0 to 8. Do that subtraction in exactly ONE place, in a function with a name, rather than sprinkling -1 through your code.",
+    "while read a number from cin:\n    index = number - 1\n    place the current player's mark at index\n    switch the current player\n    print the board",
+    "`while (std::cin >> n)` is the loop condition you want. It is false when input runs out, which is what makes `printf '1\\n5\\n9\\n' | ./game` finish instead of spinning forever. If you use `while (true)` with a `cin >> n` inside, a piped test will hang the moment input ends."
+  ],
+  "prompts": [
+    {
+      "id": 1,
+      "title": "My program hangs or loops forever",
+      "body": "My tic-tac-toe program either never stops or stops immediately when I pipe input into it:\n\n    printf '1\\n5\\n9\\n' | ./game\n\nHere is my code:\n<PASTE main.cpp>\n\nAsk me what I expected to happen first. Then help me reason about what std::cin does when there is no more input, and how my loop condition responds to that. Do not paste corrected code at me."
+    },
+    {
+      "id": 2,
+      "title": "Review my approach, don't write it",
+      "body": "I have just split my tic-tac-toe program into functions for the first time.\n\nHere is my code:\n<PASTE main.cpp>\n\nAsk me questions about the split. Specifically: does each function do exactly one thing, could I explain what each one returns without looking, and is there anywhere I convert between the player's 1-9 and my 0-8 more than once? Do not rewrite it."
+    },
+    {
+      "id": 3,
+      "title": "Quiz me on functions and input",
+      "body": "Quiz me on C++ functions, parameters, return values, and reading input with std::cin.\n\nOne question at a time, wait for my answer. Include at least one question about what happens when std::cin fails, and one where I have to say what a function returns without running it. If I am wrong, ask a smaller question rather than explaining."
+    }
+  ]
+}

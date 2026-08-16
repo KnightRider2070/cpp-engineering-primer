@@ -1,0 +1,46 @@
+{
+  "id": 6,
+  "slug": "pointers-and-references",
+  "title": "Pointers & References",
+  "tagline": "Memory & indirection",
+  "estimate": "4-6 hours",
+  "unlocks": "Understanding the code you already wrote.",
+  "objective": "Go back and understand the pointer and the reference you used at Stage 5 without explanation. Then rewrite your CLI to drive the game through ttt::Game, so your terminal game and your web game run the exact same code path.",
+  "creates": ["rewritten my-game/main.cpp", "a const& pass on everything from Stage 2 onwards"],
+  "concepts": {
+    "cpp": ["& versus *", "pass by value versus const&", "references cannot be null or rebound", "-> versus .", "nullptr", "std::unique_ptr and ownership", "object lifetime", "stack versus heap", "why returning a reference to a local is a bug"],
+    "linux": ["AddressSanitizer", "-fsanitize=address,undefined", "gdb on a broken program"],
+    "git": ["git reflog", "recovering a lost commit", "git stash", "git restore"]
+  },
+  "knows": ["arrays", "loops", "functions", "classes", "const", "enum class", "std::optional", "pointers", "references", "std::unique_ptr", "object lifetime"],
+  "notYet": ["how virtual dispatch works under the hood", "templates", "move semantics in depth"],
+  "checks": [
+    "All the Stage 5 contract tests still pass.",
+    "All the Stage 2 and Stage 4 behaviour checks still pass.",
+    "Your CLI, rebuilt with AddressSanitizer, plays a full scripted game and exits clean.",
+    "Two games created at once stay independent (no globals)."
+  ],
+  "hints": [
+    "At Stage 5 you wrote `std::unique_ptr<ttt::Game>` and returned one from createGame(). Why a pointer at all? What would go wrong if createGame() returned a ttt::Game by value?",
+    "When you pass a std::array<char, 9> to a function by value, the whole array is copied. Print the address of the array inside and outside the function (`&arr`) and you can watch it happen.",
+    "void show(const Board& b)   // no copy, and show() cannot modify b\nvoid apply(Board& b, int cell) // no copy, and apply() CAN modify b\nBoard  copyOf(Board b)         // a copy, usually not what you want",
+    "A reference is another name for an existing object: it must be bound when created and can never be re-bound. A pointer is a variable holding an address: it can be null and can be re-pointed. Use a reference when the thing definitely exists; use a pointer when 'nothing' is a legal answer, or when you are handing over ownership.\n\n`ttt::Game& g = *game;` takes the unique_ptr's object and gives you a plain reference to it, which is why the rest of your CLI can use `g.play(...)` with a dot."
+  ],
+  "prompts": [
+    {
+      "id": 1,
+      "title": "Explain this AddressSanitizer report",
+      "body": "I built my program with -fsanitize=address,undefined and got this:\n\n<PASTE THE FULL REPORT>\n\nRead it back to me from the top: what kind of error, what operation went wrong, and which frame in the stack is MY code rather than the standard library. Then ask me what I think the lifetime of that object was. Do not tell me the fix yet."
+    },
+    {
+      "id": 2,
+      "title": "Review my use of references",
+      "body": "I have just gone through my tic-tac-toe code changing pass-by-value to pass-by-const-reference.\n\nHere are my files:\n<PASTE THEM>\n\nAsk me questions. Specifically: for each parameter I changed, does the function need to modify it (& ) or only read it (const&) or actually want its own copy; and is there anywhere I now hold a reference to something that might not outlive it? Do not rewrite my code."
+    },
+    {
+      "id": 3,
+      "title": "Quiz me on pointers and lifetime",
+      "body": "Quiz me on pointers, references, and object lifetime in C++ -- the things interviewers actually ask.\n\nOne question at a time, wait for my answer. Cover: the difference between a reference and a pointer, when a reference can be null (trick question), what std::unique_ptr guarantees, what a dangling reference is, and stack versus heap lifetime. If I answer vaguely, ask me to be precise about WHAT object exists and for HOW LONG."
+    }
+  ]
+}

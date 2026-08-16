@@ -1,0 +1,246 @@
+/* ==========================================================================
+   Dark industrial. Two accents: hazard yellow and weld orange.
+   Restrained on purpose -- industrial reads as disciplined, not busy.
+   ========================================================================== */
+
+:root {
+  --factory-hazard: #f2b705;
+  --factory-weld:   #ff5a1f;
+  --factory-go:     #3ddc84;
+
+  --vp-font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --vp-c-brand-1: #b98a00;
+  --vp-c-brand-2: #a87c00;
+  --vp-c-brand-3: #8f6900;
+  --vp-c-brand-soft: rgba(242, 183, 5, 0.14);
+}
+
+.dark {
+  --vp-c-bg:      #0e1113;
+  --vp-c-bg-alt:  #14181b;
+  --vp-c-bg-soft: #191e22;
+  --vp-c-divider: #1d2327;
+  --vp-c-text-1:  #d7dde2;
+  --vp-c-text-2:  #98a2aa;
+  --vp-c-text-3:  #7d8891;
+
+  --vp-c-brand-1: var(--factory-hazard);
+  --vp-c-brand-2: #ffc93a;
+  --vp-c-brand-3: #d9a404;
+}
+
+/* Blueprint grid, dark mode only. */
+.dark body {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.016) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.016) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* --- home hero ----------------------------------------------------------- */
+.VPHero .name {
+  font-family: var(--vp-font-family-mono);
+  letter-spacing: -0.02em;
+}
+.dark .VPHero .VPImage { filter: drop-shadow(0 0 32px rgba(242, 183, 5, 0.16)); }
+
+/* --- the assembly line --------------------------------------------------- */
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 28px 0;
+  padding: 0;
+  list-style: none;
+}
+.line-station {
+  flex: 1 1 150px;
+  position: relative;
+  padding: 14px 14px 16px;
+  background: var(--vp-c-bg-alt);
+  border: 1px solid var(--vp-c-divider);
+  border-top: 3px solid var(--vp-c-divider);
+  border-radius: 4px;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.line-station:hover {
+  border-top-color: var(--factory-hazard);
+  transform: translateY(-2px);
+}
+.line-station a { text-decoration: none; font-weight: 600; }
+.line-num {
+  display: block;
+  font-family: var(--vp-font-family-mono);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--factory-hazard);
+  margin-bottom: 6px;
+}
+.line-tag {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--vp-c-text-3);
+}
+
+/* --- stage header -------------------------------------------------------- */
+.stage-header {
+  margin: 0 0 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--vp-c-divider);
+}
+.stage-header .meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-family: var(--vp-font-family-mono);
+  font-size: 12px;
+}
+.chip {
+  display: inline-block;
+  padding: 3px 9px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 3px;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-2);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+}
+.chip-stage {
+  border-color: var(--factory-hazard);
+  color: var(--factory-hazard);
+  font-weight: 700;
+}
+.unlocks {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: var(--vp-c-bg-soft);
+  border-left: 3px solid var(--factory-hazard);
+  border-radius: 0 3px 3px 0;
+  font-size: 14px;
+}
+.unlocks strong { color: var(--factory-hazard); }
+
+/* hazard stripe */
+.hazard-rule {
+  height: 6px;
+  margin: 0 0 24px;
+  border-radius: 2px;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--factory-hazard) 0 10px,
+    #10130f 10px 20px
+  );
+  opacity: 0.5;
+}
+
+/* --- hints --------------------------------------------------------------- */
+.hint {
+  margin: 14px 0;
+  padding: 14px 16px;
+  background: var(--vp-c-bg-soft);
+  border: 1px solid var(--vp-c-divider);
+  border-left: 3px solid var(--factory-hazard);
+  border-radius: 0 4px 4px 0;
+}
+.hint-label {
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--factory-hazard);
+  margin-bottom: 8px;
+}
+.hint-body { white-space: pre-wrap; }
+.hint-locked {
+  border-left-color: var(--vp-c-divider);
+  color: var(--vp-c-text-3);
+}
+.hint-locked code {
+  color: var(--factory-hazard);
+  font-weight: 600;
+}
+
+/* --- do-not-edit plate --------------------------------------------------- */
+.plate {
+  margin: 20px 0;
+  padding: 12px 16px;
+  border: 1px solid var(--factory-weld);
+  border-radius: 4px;
+  background: rgba(255, 90, 31, 0.06);
+  font-size: 14px;
+}
+.plate-title {
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--factory-weld);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+/* --- checklist ----------------------------------------------------------- */
+.checks { margin: 12px 0; padding: 0; list-style: none; }
+.checks li {
+  position: relative;
+  padding: 6px 0 6px 26px;
+  border-bottom: 1px solid var(--vp-c-divider);
+}
+.checks li:last-child { border-bottom: none; }
+.checks li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 12px;
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--factory-go);
+  border-radius: 2px;
+}
+
+/* --- prompt block -------------------------------------------------------- */
+.prompt-box {
+  margin: 16px 0;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.prompt-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  background: var(--vp-c-bg-soft);
+  border-bottom: 1px solid var(--vp-c-divider);
+  font-family: var(--vp-font-family-mono);
+  font-size: 12px;
+}
+.prompt-head .cmd { color: var(--factory-hazard); }
+.prompt-box pre {
+  margin: 0;
+  padding: 14px;
+  background: var(--vp-c-bg);
+  font-size: 12.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+/* --- tracks table -------------------------------------------------------- */
+.tracks { width: 100%; display: table; margin: 18px 0; }
+.tracks td { vertical-align: top; padding: 8px 12px 8px 0; }
+.tracks td:first-child {
+  width: 130px;
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--factory-hazard);
+  white-space: nowrap;
+}

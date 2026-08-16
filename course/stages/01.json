@@ -1,0 +1,46 @@
+{
+  "id": 1,
+  "slug": "print-an-empty-board",
+  "title": "Print an Empty Board",
+  "tagline": "Arrays, functions, basics",
+  "estimate": "2-4 hours",
+  "unlocks": "Something on screen that looks like a game.",
+  "objective": "Write one C++ file that prints an empty 3x3 board, and compile it by hand with g++. No classes, no CMake, no build system. Just you, one file, and a compiler.",
+  "creates": ["my-game/main.cpp"],
+  "concepts": {
+    "cpp": ["char arrays", "array initialisation", "nested for loops", "row * 3 + col", "std::cout", "'\\n' vs std::endl"],
+    "linux": ["g++ -std=c++17 -Wall -Wextra -o", "./game", "output redirection with >", "reading a compiler error"],
+    "git": ["git switch -c", "git add", "git commit", "git log --oneline", "git diff"]
+  },
+  "knows": ["arrays", "loops", "std::cout", "main"],
+  "notYet": ["functions of your own", "classes", "structs", "pointers", "references", "std::array", "CMake"],
+  "checks": [
+    "my-game/main.cpp exists and compiles with -Wall -Wextra and no warnings.",
+    "Running it prints a 3x3 board: three lines, three cells each.",
+    "All nine cells are empty.",
+    "The program exits cleanly."
+  ],
+  "hints": [
+    "A tic-tac-toe board is nine cells. You could write nine separate variables, or one array of nine. Which one lets you use a loop later?",
+    "You need two loops, one inside the other: one walks the three rows, one walks the three columns inside a row. The question is how you turn a (row, column) pair into a position in a flat array of nine.",
+    "for row in 0..2:\n    for col in 0..2:\n        index = row * 3 + col\n        print board[index]\n    print newline",
+    "`char board[9];` gives you nine uninitialised chars, which will be garbage. `char board[9] = {};` zero-fills them, and `char board[9] = {'.','.','.','.','.','.','.','.','.'};` fills them with a character you can actually see. The checker accepts '.', '_', '-', '*', '#', a space, or a digit as an empty cell."
+  ],
+  "prompts": [
+    {
+      "id": 1,
+      "title": "Explain this compiler error",
+      "body": "I am compiling a single C++ file with:\n\n    g++ -std=c++17 -Wall -Wextra -o game main.cpp\n\nHere is my code:\n<PASTE main.cpp>\n\nHere is the full error:\n<PASTE THE ERROR>\n\nStart by telling me which line the compiler is really complaining about (it is not always the line in the message) and what the message means word by word. Then ask me what I was trying to write. Do not give me corrected code."
+    },
+    {
+      "id": 2,
+      "title": "Review my approach, don't write it",
+      "body": "I am printing a 3x3 tic-tac-toe board from a flat array of 9 chars.\n\nHere is my code:\n<PASTE main.cpp>\n\nAsk me questions about it. Specifically: is my index calculation right, would it still work if the board were 4x4, and is there anything here I have written three times that a loop should be doing? Do not rewrite my code -- I want to change it myself."
+    },
+    {
+      "id": 3,
+      "title": "Quiz me on arrays and loops",
+      "body": "Quiz me on C++ arrays and for loops, at the level of someone who has just written their first program.\n\nAsk ONE question at a time and wait. Include at least one question where I have to predict what a loop prints, and one about what happens if I index past the end of an array. Do not tell me the answer until I have committed to one."
+    }
+  ]
+}

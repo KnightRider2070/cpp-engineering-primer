@@ -1,0 +1,508 @@
+#!/usr/bin/env bash
+# =============================================================================
+#  ttt -- the course command
+# =============================================================================
+#  Everything you need day to day:
+#
+#     ./ttt status              where am I, what's next
+#     ./ttt check 3             am I done with stage 3? (re-runs 1..3)
+#     ./ttt check 3 --explain   ...and show me exactly what was tested
+#     ./ttt hint 3 1            a nudge. levels 1-4, increasingly direct
+#     ./ttt reveal 3            the reference solution (gated)
+#     ./ttt play                run your game in the terminal
+#     ./ttt serve               run your game in a browser
+#     ./ttt prompt 3 2          an AI prompt tuned to what you know so far
+#     ./ttt doctor              is my machine set up correctly?
+#
+#  This script is course-owned. You never need to edit it.
+# =============================================================================
+set -uo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+STATE_DIR="$ROOT/.primer"
+STATE_FILE="$STATE_DIR/stage"
+HINTS_FILE="$STATE_DIR/hints"
+RESULTS_FILE="$STATE_DIR/results"
+STAGES_DIR="$ROOT/course/stages"
+STUCK_LOG="$ROOT/my-notes/stuck-log.md"
+MAX_STAGE=8
+
+mkdir -p "$STATE_DIR"
+[[ -f "$HINTS_FILE"   ]] || : > "$HINTS_FILE"
+[[ -f "$RESULTS_FILE" ]] || : > "$RESULTS_FILE"
+[[ -f "$STATE_FILE"   ]] || printf '0\n' > "$STATE_FILE"
+
+# --- presentation ------------------------------------------------------------
+if [[ -t 1 && "${NO_COLOR:-}" == "" ]]; then
+  BOLD=$'\033[1m'; DIM=$'\033[2m'; RESET=$'\033[0m'
+  RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; BLUE=$'\033[36m'
+else
+  BOLD=""; DIM=""; RESET=""; RED=""; GREEN=""; YELLOW=""; BLUE=""
+fi
+
+say()  { printf '%s\n' "$*"; }
+ok()   { printf '%s[ ok ]%s %s\n'   "$GREEN"  "$RESET" "$*"; }
+bad()  { printf '%s[fail]%s %s\n'   "$RED"    "$RESET" "$*"; }
+warn() { printf '%s[warn]%s %s\n'   "$YELLOW" "$RESET" "$*"; }
+info() { printf '%s[info]%s %s\n'   "$BLUE"   "$RESET" "$*"; }
+head_() { printf '\n%s%s%s\n' "$BOLD" "$*" "$RESET"; }
+
+die() { printf '%s%s%s\n' "$RED" "$*" "$RESET" >&2; exit 1; }
+
+PY="${PYTHON:-python3}"
+stagejson() { "$PY" "$ROOT/course/lib/stagejson.py" "$@"; }
+
+need_python() {
+  command -v "$PY" >/dev/null 2>&1 || die "python3 is required but not installed. Run: sudo apt install python3"
+}
+
+current_stage() { cat "$STATE_FILE" 2>/dev/null || echo 0; }
+
+valid_stage() {
+  local s="${1:-}"
+  [[ "$s" =~ ^[0-9]+$ ]] && (( s >= 0 && s <= MAX_STAGE ))
+}
+
+require_stage() {
+  valid_stage "${1:-}" || die "Stage must be a number from 0 to $MAX_STAGE (got: ${1:-<none>})"
+}
+
+# --- results bookkeeping -----------------------------------------------------
+# .primer/results holds one "<stage> pass|fail" line per stage.
+record_result() {
+  local stage="$1" outcome="$2" tmp
+  tmp="$(mktemp)"
+  grep -v "^${stage} " "$RESULTS_FILE" 2>/dev/null > "$tmp" || true
+  printf '%s %s\n' "$stage" "$outcome" >> "$tmp"
+  sort -n "$tmp" > "$RESULTS_FILE"
+  rm -f "$tmp"
+}
+
+result_of() {
+  local stage="$1"
+  awk -v s="$stage" '$1 == s { print $2; found=1 } END { if (!found) print "none" }' "$RESULTS_FILE"
+}
+
+# =============================================================================
+#  status
+# =============================================================================
+cmd_status() {
+  need_python
+  local cur; cur="$(current_stage)"
+
+  printf '\n%sC++ ENGINEERING PRIMER%s\n' "$BOLD" "$RESET"
+  printf '%sBuild a game. Learn the C++ interviews ask about.%s\n\n' "$DIM" "$RESET"
+
+  # The assembly line: one segment per stage.
+  local line="  " labels="  "
+  for n in $(seq 0 $MAX_STAGE); do
+    local r; r="$(result_of "$n")"
+    local glyph col
+    if   [[ "$r" == "pass" ]]; then glyph="#"; col="$GREEN"
+    elif [[ "$n" == "$cur" ]];  then glyph="o"; col="$YELLOW"
+    else                            glyph="."; col="$DIM"
+    fi
+    line+="${col}[${glyph}]${RESET}"
+    labels+=" ${col}${n}${RESET} "
+    (( n < MAX_STAGE )) && line+="${DIM}-${RESET}"
+    (( n < MAX_STAGE )) && labels+=""
+  done
+  printf '%s\n%s\n\n' "$line" "$labels"
+
+  local title tagline
+  title="$(stagejson field "$cur" title 2>/dev/null || echo '?')"
+  tagline="$(stagejson field "$cur" tagline 2>/dev/null || echo '')"
+  printf '%sCurrent stage: %s -- %s%s\n' "$BOLD" "$cur" "$title" "$RESET"
+  [[ -n "$tagline" ]] && printf '%s%s%s\n' "$DIM" "$tagline" "$RESET"
+
+  head_ "Objective"
+  stagejson field "$cur" objective 2>/dev/null | fold -s -w 74 | sed 's/^/  /'
+
+  head_ "Done when"
+  stagejson checks "$cur" 2>/dev/null | sed 's/^/  - /'
+
+  local opened
+  opened="$(grep -c "^${cur} " "$HINTS_FILE" 2>/dev/null || true)"
+  opened="${opened:-0}"
+  head_ "Hints opened for this stage"
+  if (( opened > 0 )); then
+    printf '  %s of 4\n' "$opened"
+  else
+    printf '  %snone yet%s\n' "$DIM" "$RESET"
+  fi
+
+  head_ "Next"
+  printf '  ./ttt check %s\n\n' "$cur"
+}
+
+# =============================================================================
+#  doctor -- real checks, real versions
+# =============================================================================
+version_at_least() {  # version_at_least <have> <want>
+  [[ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -1)" == "$2" ]]
+}
+
+cmd_doctor() {
+  local problems=0
+  printf '\n%sChecking your machine%s\n\n' "$BOLD" "$RESET"
+
+  # OS
+  case "$(uname -s)" in
+    Linux)  ok "Running on Linux" ;;
+    Darwin) ok "Running on macOS (fine for the C++; Docker stage differs slightly)" ;;
+    *)      warn "Unrecognised OS: $(uname -s). The course assumes Linux (WSL2)." ;;
+  esac
+
+  if grep -qi microsoft /proc/version 2>/dev/null; then
+    ok "Inside WSL2"
+    case "$ROOT" in
+      /mnt/*) bad "This repo lives on the Windows drive ($ROOT)."
+              say "       Builds here are ~10x slower and file permissions misbehave."
+              say "       Move it: cp -r \"$ROOT\" ~/ && cd ~/$(basename "$ROOT")"
+              problems=$((problems+1)) ;;
+      *)      ok "Repo is on the Linux filesystem (fast)" ;;
+    esac
+  fi
+
+  # Compiler
+  if command -v g++ >/dev/null 2>&1; then
+    local gv; gv="$(g++ -dumpfullversion -dumpversion 2>/dev/null | head -1)"
+    if version_at_least "$gv" "11"; then ok "g++ $gv"
+    else warn "g++ $gv is older than 11. Some C++17 support may be incomplete."; fi
+  elif command -v clang++ >/dev/null 2>&1; then
+    ok "clang++ $(clang++ --version | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1) (g++ not found; fine locally)"
+  else
+    bad "No C++ compiler found. Run: sudo apt install build-essential"
+    problems=$((problems+1))
+  fi
+
+  # CMake
+  if command -v cmake >/dev/null 2>&1; then
+    local cv; cv="$(cmake --version | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+    if version_at_least "$cv" "3.22"; then ok "cmake $cv"
+    else bad "cmake $cv is older than 3.22. Run: sudo apt install cmake"; problems=$((problems+1)); fi
+  else
+    bad "cmake not found. Run: sudo apt install cmake"; problems=$((problems+1))
+  fi
+
+  # git + identity
+  if command -v git >/dev/null 2>&1; then
+    ok "git $(git --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+    local gn ge
+    gn="$(git config --get user.name  || true)"
+    ge="$(git config --get user.email || true)"
+    if [[ -n "$gn" && -n "$ge" ]]; then
+      ok "git identity: $gn <$ge>"
+    else
+      bad "git does not know who you are. Run:"
+      say '       git config --global user.name  "Your Name"'
+      say '       git config --global user.email "you@example.com"'
+      problems=$((problems+1))
+    fi
+  else
+    bad "git not found. Run: sudo apt install git"; problems=$((problems+1))
+  fi
+
+  # python3 (the checker needs it)
+  if command -v "$PY" >/dev/null 2>&1; then
+    ok "$($PY --version 2>&1)"
+  else
+    bad "python3 not found. Run: sudo apt install python3"; problems=$((problems+1))
+  fi
+
+  # gdb (needed at stage 4)
+  if command -v gdb >/dev/null 2>&1; then ok "gdb $(gdb --version | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1)"
+  else warn "gdb not found. You need it from Stage 4: sudo apt install gdb"; fi
+
+  # docker (only needed at stage 8)
+  if command -v docker >/dev/null 2>&1; then
+    if docker info >/dev/null 2>&1; then ok "docker (daemon running)"
+    else warn "docker is installed but the daemon isn't running. Only needed at Stage 8."; fi
+  else
+    info "docker not installed. You don't need it until Stage 8."
+  fi
+
+  # Repo sanity
+  [[ -f "$ROOT/course/include/ttt/Game.hpp" ]] && ok "Course contract present" \
+    || { bad "course/include/ttt/Game.hpp is missing -- is this the right folder?"; problems=$((problems+1)); }
+  [[ -d "$ROOT/my-game" ]] && ok "my-game/ exists (your code goes here)" \
+    || { bad "my-game/ is missing"; problems=$((problems+1)); }
+
+  printf '\n'
+  if (( problems == 0 )); then
+    printf '%sEverything the course needs is here.%s\n\n' "$GREEN" "$RESET"
+    printf '  Next: ./ttt status\n\n'
+  else
+    printf '%s%d thing(s) to fix above.%s\n\n' "$RED" "$problems" "$RESET"
+    return 1
+  fi
+}
+
+# =============================================================================
+#  check -- the grader. Never prints a PASS it didn't earn.
+# =============================================================================
+cmd_check() {
+  need_python
+  local stage="" explain="" report=""
+  for arg in "$@"; do
+    case "$arg" in
+      --explain) explain="--explain" ;;
+      --report)  report="--report" ;;
+      --all)     stage="all" ;;
+      -*)        die "Unknown option: $arg" ;;
+      *)         stage="$arg" ;;
+    esac
+  done
+  [[ -z "$stage" ]] && stage="$(current_stage)"
+
+  if [[ "$stage" == "all" ]]; then
+    "$PY" "$ROOT/course/checks/run.py" --all $report $explain
+    return $?
+  fi
+
+  require_stage "$stage"
+  "$PY" "$ROOT/course/checks/run.py" "$stage" $explain
+  local rc=$?
+
+  if (( rc == 0 )); then
+    record_result "$stage" pass
+    # Advance only if this was the stage they're on.
+    if [[ "$stage" == "$(current_stage)" ]] && (( stage < MAX_STAGE )); then
+      printf '%s\n' "$((stage + 1))" > "$STATE_FILE"
+      local nt; nt="$(stagejson field "$((stage+1))" title)"
+      printf '\n%sStage %s complete.%s Next up: Stage %s -- %s\n' \
+        "$GREEN" "$stage" "$RESET" "$((stage+1))" "$nt"
+      printf '  ./ttt status\n\n'
+    elif [[ "$stage" == "$MAX_STAGE" ]]; then
+      printf '\n%sThat was the last stage. You built the whole thing.%s\n\n' "$GREEN" "$RESET"
+    fi
+  else
+    record_result "$stage" fail
+    if [[ -z "$explain" ]]; then
+      printf '\n%sTip:%s run  ./ttt check %s --explain  to see exactly what was tested.\n\n' \
+        "$DIM" "$RESET" "$stage"
+    fi
+  fi
+  return $rc
+}
+
+# =============================================================================
+#  hint / reveal
+# =============================================================================
+cmd_hint() {
+  need_python
+  local stage="${1:-$(current_stage)}" level="${2:-1}"
+  require_stage "$stage"
+  [[ "$level" =~ ^[1-5]$ ]] || die "Hint levels are 1 to 4 (5 is the reveal: ./ttt reveal $stage)"
+
+  if [[ "$level" == "5" ]]; then
+    say "Level 5 is the reference solution. Use: ./ttt reveal $stage"
+    return 0
+  fi
+
+  grep -Fqx "$stage $level" "$HINTS_FILE" 2>/dev/null || printf '%s %s\n' "$stage" "$level" >> "$HINTS_FILE"
+
+  local label
+  case "$level" in
+    1) label="Direction" ;;
+    2) label="Decomposition" ;;
+    3) label="Pseudocode" ;;
+    4) label="C++ specifics" ;;
+  esac
+
+  printf '\n%sStage %s -- Hint %s: %s%s\n\n' "$BOLD" "$stage" "$level" "$label" "$RESET"
+  stagejson hint "$stage" "$level" | fold -s -w 74 | sed 's/^/  /'
+  printf '\n'
+  if (( level < 4 )); then
+    printf '%sNext nudge: ./ttt hint %s %s%s\n\n' "$DIM" "$stage" "$((level+1))" "$RESET"
+  else
+    printf '%sThat is the last hint. If you are still stuck, write an entry in%s\n' "$DIM" "$RESET"
+    printf '%smy-notes/stuck-log.md and then run ./ttt reveal %s%s\n\n' "$DIM" "$stage" "$RESET"
+  fi
+}
+
+reveal_gate() {
+  local stage="$1" missing=()
+  for lvl in 1 2 3 4; do
+    grep -Fqx "$stage $lvl" "$HINTS_FILE" 2>/dev/null || missing+=("$lvl")
+  done
+  if (( ${#missing[@]} > 0 )); then
+    printf '\n%sNot yet.%s You have not opened hint level(s): %s\n\n' "$YELLOW" "$RESET" "${missing[*]}"
+    printf '  ./ttt hint %s %s\n\n' "$stage" "${missing[0]}"
+    printf '%sThe hints get very concrete by level 4. Most people never need the reveal.%s\n\n' "$DIM" "$RESET"
+    return 1
+  fi
+  if ! grep -qE "^[[:space:]]*Stage:[[:space:]]*${stage}\b" "$STUCK_LOG" 2>/dev/null; then
+    printf '\n%sNot yet.%s There is no Stage %s entry in my-notes/stuck-log.md.\n\n' "$YELLOW" "$RESET" "$stage"
+    printf '  Add a block that starts with:  Stage: %s\n\n' "$stage"
+    printf '%sThis is not busywork. Writing down what you expected versus what happened%s\n' "$DIM" "$RESET"
+    printf '%ssolves the problem more often than the answer does.%s\n\n' "$DIM" "$RESET"
+    return 1
+  fi
+  return 0
+}
+
+cmd_reveal() {
+  local stage="${1:-$(current_stage)}"
+  require_stage "$stage"
+  reveal_gate "$stage" || return 1
+
+  local bundle; bundle="$(printf '%s/course/reference/stage-%02d.b64' "$ROOT" "$stage")"
+  if [[ ! -f "$bundle" ]]; then
+    die "No reference bundle for stage $stage (expected $bundle)"
+  fi
+
+  printf '\n%sReference solution -- Stage %s%s\n' "$BOLD" "$stage" "$RESET"
+  printf '%s%s%s\n\n' "$DIM" "This is one way to do it, not the only way. Compare, don't copy." "$RESET"
+  if ! base64 --decode < "$bundle" | gunzip; then
+    die "Could not decode the reference bundle for stage $stage. It may be corrupt."
+  fi
+  printf '\n'
+}
+
+# =============================================================================
+#  prompt
+# =============================================================================
+cmd_prompt() {
+  need_python
+  local stage="${1:-$(current_stage)}" id="${2:-}"
+  require_stage "$stage"
+  if [[ -z "$id" ]]; then
+    printf '\n%sAI prompts for Stage %s%s\n\n' "$BOLD" "$stage" "$RESET"
+    stagejson prompts "$stage" | while IFS=$'\t' read -r pid title; do
+      printf '  %s  %s\n' "$pid" "$title"
+    done
+    printf '\n  ./ttt prompt %s <number>\n' "$stage"
+    printf '%s  On WSL2, add  | clip.exe  to copy it straight to Windows.%s\n\n' "$DIM" "$RESET"
+    return 0
+  fi
+  stagejson prompt "$stage" "$id"
+}
+
+# =============================================================================
+#  play / serve
+# =============================================================================
+ensure_configured() {
+  [[ -d "$ROOT/build" ]] || cmake -S "$ROOT" -B "$ROOT/build" >/dev/null || die "cmake configure failed"
+}
+
+cmd_play() {
+  ensure_configured
+  cmake --build "$ROOT/build" --target ttt-cli 2>&1 | tail -20 || die "Build failed."
+  local bin
+  bin="$(find "$ROOT/build" -name 'ttt-cli' -type f -perm -u+x 2>/dev/null | head -1)"
+  [[ -x "$bin" ]] || die "Could not find the ttt-cli binary. Have you reached Stage 3?"
+  exec "$bin"
+}
+
+cmd_serve() {
+  ensure_configured
+  if ! cmake --build "$ROOT/build" --target ttt-server 2>&1 | tail -20; then
+    die "Build failed. The server needs ttt::createGame() -- that arrives at Stage 5."
+  fi
+  local bin
+  bin="$(find "$ROOT/build" -name 'ttt-server' -type f -perm -u+x 2>/dev/null | head -1)"
+  [[ -x "$bin" ]] || die "No ttt-server binary. You need to implement ttt::createGame() (Stage 5)."
+  printf '\n%sYour game is at%s  http://localhost:8080\n' "$BOLD" "$RESET"
+  printf '%sOn WSL2 just open that in your normal Windows browser. Ctrl-C to stop.%s\n\n' "$DIM" "$RESET"
+  exec "$bin" --web-root "$ROOT/course/web"
+}
+
+# =============================================================================
+#  exercise
+# =============================================================================
+cmd_exercise() {
+  local which="${1:-}"
+  case "$which" in
+    conflict|review|reflog|self-review)
+      exec "$ROOT/course/lib/exercise-${which}.sh" "${@:2}"
+      ;;
+    ""|list)
+      printf '\n%sExercises%s\n\n' "$BOLD" "$RESET"
+      printf '  conflict     Stage 3  make and resolve a real merge conflict in your own code\n'
+      printf '  review       Stage 5  find the bug in somebody else'"'"'s win detection\n'
+      printf '  reflog       Stage 6  lose a commit, then get it back\n'
+      printf '  self-review  Stage 7  review your own diff like a reviewer would\n\n'
+      printf '  ./ttt exercise <name>\n\n'
+      ;;
+    *) die "Unknown exercise: $which  (try: ./ttt exercise list)" ;;
+  esac
+}
+
+# =============================================================================
+#  selftest -- for the course author, not the student
+# =============================================================================
+cmd_selftest() {
+  need_python
+  local problems=0
+  printf '\n%sCourse self-test%s\n\n' "$BOLD" "$RESET"
+
+  if stagejson validate; then :; else problems=$((problems+1)); fi
+
+  for n in $(seq 0 $MAX_STAGE); do
+    local b; b="$(printf '%s/course/reference/stage-%02d.b64' "$ROOT" "$n")"
+    if [[ ! -f "$b" ]]; then
+      bad "no reference bundle: course/reference/stage-$(printf '%02d' "$n").b64"
+      problems=$((problems+1))
+    fi
+  done
+
+  for f in course/checks/run.py course/web/index.html course/server/Main.cpp docs/.vitepress/config.mts; do
+    [[ -e "$ROOT/$f" ]] || { bad "missing: $f"; problems=$((problems+1)); }
+  done
+
+  printf '\n'
+  (( problems == 0 )) && { ok "Course is internally consistent."; printf '\n'; return 0; }
+  bad "$problems problem(s)."; printf '\n'; return 1
+}
+
+# =============================================================================
+#  stage / help
+# =============================================================================
+cmd_stage() {
+  if [[ -n "${1:-}" ]]; then
+    require_stage "$1"
+    printf '%s\n' "$1" > "$STATE_FILE"
+    say "Current stage set to $1"
+  else
+    say "Current stage: $(current_stage)"
+  fi
+}
+
+cmd_help() {
+  cat <<EOF
+
+${BOLD}ttt -- the course command${RESET}
+
+  ${BOLD}status${RESET}                  where you are and what's next
+  ${BOLD}check${RESET} [N] [--explain]   run stage N's checks (re-runs 1..N)
+  ${BOLD}check --all${RESET} [--report]  run every stage (used by CI)
+  ${BOLD}hint${RESET} N LEVEL            a nudge; levels 1-4, increasingly direct
+  ${BOLD}reveal${RESET} N                reference solution (needs hints 1-4 + a stuck-log entry)
+  ${BOLD}prompt${RESET} N [ID]           an AI prompt scoped to what you know so far
+  ${BOLD}play${RESET}                    build and run your CLI game
+  ${BOLD}serve${RESET}                   build and run your game in a browser
+  ${BOLD}exercise${RESET} NAME           git and code-review drills
+  ${BOLD}doctor${RESET}                  check this machine
+  ${BOLD}stage${RESET} [N]               show or set the current stage
+  ${BOLD}selftest${RESET}                (course author) check the course itself
+
+EOF
+}
+
+# =============================================================================
+case "${1:-status}" in
+  status)   shift; cmd_status "$@" ;;
+  doctor)   shift; cmd_doctor "$@" ;;
+  check)    shift; cmd_check  "$@" ;;
+  hint)     shift; cmd_hint   "$@" ;;
+  reveal)   shift; cmd_reveal "$@" ;;
+  prompt)   shift; cmd_prompt "$@" ;;
+  play)     shift; cmd_play   "$@" ;;
+  serve)    shift; cmd_serve  "$@" ;;
+  exercise) shift; cmd_exercise "$@" ;;
+  selftest) shift; cmd_selftest "$@" ;;
+  stage)    shift; cmd_stage  "$@" ;;
+  help|-h|--help) cmd_help ;;
+  *) printf '%sUnknown command: %s%s\n' "$RED" "$1" "$RESET"; cmd_help; exit 1 ;;
+esac

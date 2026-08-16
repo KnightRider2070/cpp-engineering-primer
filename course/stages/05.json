@@ -1,0 +1,47 @@
+{
+  "id": 5,
+  "slug": "winner-detection",
+  "title": "Winner Detection",
+  "tagline": "Nested loops, algorithms",
+  "estimate": "4-6 hours",
+  "unlocks": "Your game. In a browser. Playing your C++.",
+  "objective": "Detect a win on any of the eight lines and a draw on a full board. Then implement ttt::Game so the course's web server can run the game you built.",
+  "creates": ["win detection in your existing files", "my-game/Adapter.hpp", "my-game/Adapter.cpp"],
+  "concepts": {
+    "cpp": ["a table of winning lines", "arrays of arrays", "std::optional", "inheriting from an interface (used now, explained at Stage 7)", "override", "std::unique_ptr and std::make_unique"],
+    "linux": ["GoogleTest", "ctest", "./ttt serve", "reaching a WSL2 port from Windows"],
+    "git": ["reviewing someone else's broken code"]
+  },
+  "knows": ["arrays", "loops", "functions", "classes", "const member functions", "enum class", "switch", "std::optional"],
+  "notYet": ["pointers explained", "references as parameters explained", "how virtual dispatch actually works", "templates"],
+  "checks": [
+    "All eight winning lines are detected, for both players.",
+    "A full board with no line is a draw, not a win.",
+    "ttt::createGame() returns a working game.",
+    "A snapshot you took earlier does not change when you play a move.",
+    "Two calls to createGame() give two independent games."
+  ],
+  "hints": [
+    "How many distinct sets of three cells win the game? Write them all down on paper before you write any code. Getting the count right is most of this stage.",
+    "There are two separate questions here, and mixing them is what makes this hard: (a) which triples of positions are winning lines, and (b) do these three cells hold the same non-empty mark? Write them as two different things.",
+    "WIN_LINES = [ (0,1,2), (3,4,5), (6,7,8), (0,3,6), (1,4,7), (2,5,8), (0,4,8), (2,4,6) ]\n\nfor (a, b, c) in WIN_LINES:\n    if board[a] is not empty and board[a] == board[b] == board[c]:\n        winner = board[a]",
+    "That table can be a `std::array<std::array<int, 3>, 8>` declared once, and a loop over it. If you find yourself typing the eighth `if` statement, stop and go back to hint 3.\n\nFor the adapter: put `ttt::createGame()` at the BOTTOM of Adapter.cpp, not in its own file. A factory function in a file you forgot to add to CMakeLists.txt produces a linker error that looks like a mystery."
+  ],
+  "prompts": [
+    {
+      "id": 1,
+      "title": "My win detection misses cases",
+      "body": "My tic-tac-toe game does not always notice a win.\n\nHere is my win-checking code:\n<PASTE IT>\n\nHere is a board where it goes wrong:\n<DESCRIBE THE BOARD AND WHO SHOULD HAVE WON>\n\nAsk me to trace through my own code by hand for that board before you say anything about the cause. Then ask which lines my code actually checks."
+    },
+    {
+      "id": 2,
+      "title": "Review my win-detection approach",
+      "body": "I have written win detection for tic-tac-toe.\n\nHere is my code:\n<PASTE IT>\n\nAsk me questions rather than rewriting it. Specifically: how many places would I have to change to support a 4x4 board, is my 'is this line a win' logic written once or eight times, and how would I test this without playing a whole game? Do not give me code."
+    },
+    {
+      "id": 3,
+      "title": "Quiz me on Stage 5",
+      "body": "Quiz me on what I just built: iterating a table of winning lines, std::optional, and the idea of implementing an interface someone else defined.\n\nOne question at a time, wait for me. Include the interview-style question: 'why is a table of winning lines better than eight if statements, and what does it cost you?' Push back if my answer is vague."
+    }
+  ]
+}

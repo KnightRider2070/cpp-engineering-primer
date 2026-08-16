@@ -1,0 +1,32 @@
+# Build output
+build/
+build-*/
+cmake-build-*/
+compile_commands.json
+
+# Course-author material. Reference solutions live here in plaintext.
+# This is never committed -- that is the whole point.
+authoring/
+
+# Local course state: which stage you're on, which hints you've opened.
+.primer/
+
+# Docs site
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+node_modules/
+
+# Compiled binaries (you will add to this at Stage 2)
+*.o
+*.obj
+*.exe
+*.out
+
+# Editor / OS noise
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Editor/agent tooling
+.claude/

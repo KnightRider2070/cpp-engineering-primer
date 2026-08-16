@@ -1,0 +1,47 @@
+{
+  "id": 7,
+  "slug": "player-strategies",
+  "title": "Player Strategies",
+  "tagline": "Virtual functions, override",
+  "estimate": "5-7 hours",
+  "unlocks": "An opponent that plays back.",
+  "objective": "Design your own abstract base class for a player, implement three different strategies behind it, and add a --vs-computer mode to your CLI so the machine answers your moves. This is the second polymorphic hierarchy you write -- the first one was handed to you at Stage 5.",
+  "creates": ["my-game/Player.hpp", "a human strategy", "a random strategy", "a blocking strategy", "--vs-computer handling in main.cpp", "your own tests"],
+  "concepts": {
+    "cpp": ["pure virtual functions", "override and what it protects you from", "virtual destructors", "object slicing", "std::vector<std::unique_ptr<T>>", "std::mt19937 with a fixed seed", "final"],
+    "linux": ["writing your own GoogleTest cases", "ctest -R", "arrange / act / assert"],
+    "git": ["reviewing your own diff before anyone else does"]
+  },
+  "knows": ["everything through Stage 6", "pointers", "references", "unique_ptr", "virtual", "override", "inheritance", "polymorphism"],
+  "notYet": ["templates", "multiple inheritance", "CRTP", "move semantics in depth"],
+  "checks": [
+    "`ttt-cli --vs-computer` runs, and after one move of yours the board has two marks.",
+    "Your move still lands exactly where you asked.",
+    "You have registered your own tests with ctest, and they pass.",
+    "Every contract test from Stage 5 still passes -- createGame() stays two-player.",
+    "Your blocking strategy takes an immediate win, and blocks an immediate loss (your tests prove this, not ours)."
+  ],
+  "hints": [
+    "Every strategy answers the same question -- 'given this board, where do you want to play?' -- in a different way. That sentence is a function signature. Write it down.",
+    "Your base class has no sensible default answer to that question, so its function has no body at all. Look up what `= 0` after a member function means, and what it makes the class.",
+    "class Player:\n    virtual ~Player() = default\n    virtual int chooseMove(const Board& b, Mark me) const = 0\n\nclass RandomPlayer : public Player:\n    int chooseMove(...) const override:  pick any empty cell\n\nclass BlockingPlayer : public Player:\n    if I can win now -> take it\n    else if they can win next -> block it\n    else -> anything",
+    "Give the base class a `virtual` destructor. Without one, deleting a derived object through a base pointer only runs the base destructor -- and with AddressSanitizer on you can watch the leak happen.\n\nFor testing: seed your random generator with a fixed number (`std::mt19937 rng{12345}`) so the same game plays out the same way twice. Untestable randomness is a design choice, not a fact of life."
+  ],
+  "prompts": [
+    {
+      "id": 1,
+      "title": "My override doesn't get called",
+      "body": "I have a base class and a derived class, and the derived version of my function is not being called.\n\nHere is my code:\n<PASTE IT>\n\nAsk me: is the base function marked virtual, did I write `override` on the derived one, and am I holding the object by value or by pointer/reference? Walk me toward the answer by asking which of those I have checked, rather than telling me which one is wrong."
+    },
+    {
+      "id": 2,
+      "title": "Review my class hierarchy",
+      "body": "I have designed an abstract Player base class with three strategy implementations for tic-tac-toe.\n\nHere are my files:\n<PASTE THEM>\n\nAsk me questions about the design. Specifically: does my base class have a virtual destructor and can I say why it matters here, is chooseMove const and should it be, could a strategy return an illegal move and what happens if it does, and would adding a fourth strategy require changing any existing file? Do not rewrite it."
+    },
+    {
+      "id": 3,
+      "title": "Quiz me for the interview",
+      "body": "Quiz me on virtual functions and polymorphism the way an interviewer would.\n\nOne question at a time, wait for my answer, and push back when I am vague. Cover at minimum: what a vtable is and when it gets used, why a base class needs a virtual destructor, what object slicing is and how to trigger it by accident, what `override` actually does for me, and the difference between overriding and overloading.\n\nAfter each answer, tell me whether it would have satisfied an interviewer and what was missing."
+    }
+  ]
+}
