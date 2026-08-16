@@ -49,8 +49,10 @@ jobs:
         working-directory: docs
         run: npx vitepress build
 
-      - uses: actions/configure-pages@v5
-
+      # No actions/configure-pages here on purpose: the base path is set in
+      # docs/.vitepress/config.mts, and configure-pages hard-fails when Pages
+      # has not been enabled yet -- which would make this job red even though
+      # the site built perfectly.
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs/.vitepress/dist
@@ -59,6 +61,10 @@ jobs:
     name: Deploy to Pages
     needs: build
     runs-on: ubuntu-latest
+    # Only attempts a deploy once you have switched Pages on:
+    #   Settings -> Pages -> Build and deployment -> Source: GitHub Actions
+    # then set a repository variable PAGES_ENABLED=true (or delete this line).
+    if: vars.PAGES_ENABLED == 'true'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
