@@ -4,8 +4,7 @@ build-*/
 cmake-build-*/
 compile_commands.json
 
-# Course-author material. Reference solutions live here in plaintext.
-# This is never committed -- that is the whole point.
+# Course-author material.
 authoring/
 
 # Local course state: which stage you're on, which hints you've opened.
@@ -30,3 +29,6 @@ node_modules/
 
 # Editor/agent tooling
 .claude/
+.codex/
+.copilot/
+
